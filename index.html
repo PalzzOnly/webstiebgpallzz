@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>File ➜ URL (Catbox)</title>
+  <style>
+    body {
+      margin:0;
+      font-family: "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height:100vh;
+    }
+    .card {
+      background:#fff;
+      padding:40px 22px;
+      border-radius:22px;
+      box-shadow:0 10px 30px rgba(0,0,0,.12);
+      width:100%;
+      max-width:420px;
+      text-align:center;
+      position:relative;
+    }
+    h1 {
+      margin:0 0 20px;
+      font-size:22px;
+      color:#0d47a1;
+    }
+    .dropzone {
+      border:2px dashed #90caf9;
+      border-radius:16px;
+      padding:50px 20px;
+      background:#f5f9ff;
+      cursor:pointer;
+      transition:.25s;
+      margin-bottom:18px;
+    }
+    .dropzone:hover { background:#e3f2fd; }
+    .dropzone p {
+      margin:8px 0 0;
+      color:#1976d2;
+      font-weight:600;
+      font-size:15px;
+    }
+    .icon {
+      font-size:42px;
+      color:#1976d2;
+    }
+    input[type=file] { display:none; }
+    .btn {
+      background:#1976d2;
+      color:#fff;
+      border:none;
+      padding:12px 18px;
+      border-radius:12px;
+      font-weight:600;
+      cursor:pointer;
+      transition:.25s;
+      margin-top:8px;
+      width:100%;
+    }
+    .btn:hover { background:#1565c0; }
+    .btn[disabled] { opacity:.6; cursor:not-allowed; }
+    .status {
+      font-size:14px;
+      margin-top:14px;
+      color:#444;
+    }
+    .progress {
+      margin-top:12px;
+      height:10px;
+      width:100%;
+      border-radius:6px;
+      background:#e3f2fd;
+      overflow:hidden;
+      display:none;
+    }
+    .progress-bar {
+      height:100%;
+      width:0;
+      background:#1976d2;
+      transition: width 0.2s;
+    }
+    .result {
+      margin-top:18px;
+      display:flex;
+      gap:8px;
+    }
+    .result input {
+      flex:1;
+      padding:10px;
+      border:1px solid #bbdefb;
+      border-radius:10px;
+      font-size:14px;
+    }
+    .copy {
+      background:#e3f2fd;
+      border:1px solid #90caf9;
+      padding:10px 14px;
+      border-radius:10px;
+      cursor:pointer;
+      font-weight:600;
+      color:#0d47a1;
+      transition:.2s;
+    }
+    .copy.copied { background:#c8e6c9; border-color:#66bb6a; color:#1b5e20; }
+    footer {
+      margin-top:20px;
+      font-size:12px;
+      color:#888;
+    }
+    .toast {
+      position:fixed;
+      bottom:20px;
+      left:50%;
+      transform:translateX(-50%);
+      background:#0d47a1;
+      color:#fff;
+      padding:10px 16px;
+      border-radius:10px;
+      font-size:14px;
+      box-shadow:0 4px 15px rgba(0,0,0,.2);
+      opacity:0;
+      transition:.3s;
+      pointer-events:none;
+    }
+    .toast.show { opacity:1; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>File ➜ URL (Catbox)</h1>
+    
+    <div class="dropzone" id="dropzone">
+      <div class="icon">📂</div>
+      <p>Klik atau seret file ke sini</p>
+    </div>
+    <input type="file" id="file" />
+
+    <button class="btn" id="uploadBtn" disabled>Unggah</button>
+    <div class="status" id="status">Belum ada file.</div>
+    <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="result" id="result" style="display:none;">
+      <input id="urlOutput" readonly>
+      <button class="copy" id="copyBtn">Salin</button>
+    </div>
+    <footer>© 2025 - Dibuat dengan Catbox API</footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const fileInput = document.getElementById('file');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const statusEl = document.getElementById('status');
+    const resultEl = document.getElementById('result');
+    const urlOutput = document.getElementById('urlOutput');
+    const copyBtn = document.getElementById('copyBtn');
+    const dropzone = document.getElementById('dropzone');
+    const progress = document.getElementById('progress');
+    const progressBar = document.getElementById('progressBar');
+    const toast = document.getElementById('toast');
+
+    let pickedFile = null;
+
+    function showToast(msg){
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(()=>toast.classList.remove("show"),1800);
+    }
+
+    function setFile(file){
+      pickedFile = file;
+      if(file){
+        statusEl.textContent = `Dipilih: ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+        uploadBtn.disabled = false;
+      } else {
+        statusEl.textContent = "Belum ada file.";
+        uploadBtn.disabled = true;
+      }
+      resultEl.style.display = 'none';
+      urlOutput.value = '';
+    }
+
+    fileInput.addEventListener('change', e => setFile(e.target.files[0]));
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    ['dragenter','dragover'].forEach(evt => {
+      dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        dropzone.style.background = "#e3f2fd";
+      });
+    });
+    ['dragleave','drop'].forEach(evt => {
+      dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        dropzone.style.background = "#f5f9ff";
+      });
+    });
+    dropzone.addEventListener('drop', e => {
+      const file = e.dataTransfer.files[0];
+      if(file) setFile(file);
+    });
+
+    async function uploadToServer(file){
+  const form = new FormData();
+  form.append('reqtype', 'fileupload');
+  form.append('fileToUpload', file);
+
+  const xhr = new XMLHttpRequest();
+  return new Promise((resolve,reject)=>{
+    xhr.open("POST", "https://catbox.moe/user/api.php");
+    xhr.upload.addEventListener("progress", e=>{
+      if(e.lengthComputable){
+        progress.style.display="block";
+        progressBar.style.width = (e.loaded/e.total*100).toFixed(0)+"%";
+      }
+    });
+    xhr.onload = () => resolve(xhr.responseText);
+    xhr.onerror = () => reject(new Error("Network error"));
+    xhr.send(form);
+  });
+}
+
+
+    uploadBtn.addEventListener('click', async () => {
+      if(!pickedFile) return;
+      uploadBtn.disabled = true;
+      statusEl.textContent = "Mengunggah...";
+      progressBar.style.width="0";
+      progress.style.display="block";
+      try{
+        const url = (await uploadToServer(pickedFile)).trim();
+        if(url.startsWith("http")){
+          urlOutput.value = url;
+          resultEl.style.display = "flex";
+          statusEl.textContent = "Berhasil!";
+          showToast("Unggah berhasil 🎉");
+        } else {
+          statusEl.textContent = "Gagal: " + url;
+          showToast("Gagal mengunggah");
+        }
+      }catch(err){
+        statusEl.textContent = "Error: " + err.message;
+        showToast("Terjadi error");
+      }
+      uploadBtn.disabled = false;
+      setTimeout(()=>progress.style.display="none",800);
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      try{
+        await navigator.clipboard.writeText(urlOutput.value);
+        copyBtn.classList.add("copied");
+        copyBtn.textContent="✓";
+        showToast("URL tersalin");
+        setTimeout(()=>{
+          copyBtn.classList.remove("copied");
+          copyBtn.textContent="Salin";
+        },1200);
+      }catch{
+        urlOutput.select();
+        document.execCommand('copy');
+        showToast("URL tersalin");
+      }
+    });
+  </script>
+</body>
+</html>
